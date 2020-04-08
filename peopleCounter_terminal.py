@@ -72,7 +72,7 @@ class peopleDetector:
 
     def drawZones(self, jumpFrames=1 , VIDEO_PATH=0):
         #video = FileVideoStream(VIDEO_PATH).start()
-        video = cv2.VideoCapture(0)
+        video = cv2.VideoCapture(VIDEO_PATH)
         
         MAX_ALLOWED = 4
         ALLOWED_ZONES = 0
@@ -118,9 +118,11 @@ class peopleDetector:
         if(VIDEO_PATH == 0):
             STREAM = True
         
-
-        video = cv2.VideoCapture(VIDEO_PATH)        #this is the basic opencv video streaming.
-        #video = FileVideoStream(VIDEO_PATH).start()  #this is an improved version of opencv video streaming
+        print('Live ', STREAM)
+        if(STREAM):
+            video = cv2.VideoCapture(VIDEO_PATH)        #this is the basic opencv video streaming.
+        else:
+            video = FileVideoStream(VIDEO_PATH).start()  #this is an improved version of opencv video streaming. smoother but adds lag on streamming
         #vs = VideoStream(usePiCamera=1).start()     #this is similar but uses a rpi cam. which is faster and more efficient than a webcam
         time.sleep(2.0)
         
@@ -145,11 +147,19 @@ class peopleDetector:
         #fps = FPS().start()
 
         #while video.more():
-        while video.isOpened():
+        #while video.isOpened():
+        while True:
             #print('_____________',idFrame)
-            _,frame = video.read()
-            #if not ret:
-            #    print("Frame problem")
+            if(STREAM):
+                ret,frame = video.read()
+                if not ret:
+                    print("No more images.")
+                    cv2.destroyAllWindows()
+                    video.release()
+                    break
+            else:
+                frame = video.read()
+
             frameHeight, frameWidth,_ = frame.shape
 
             frame2show = frame.copy()
@@ -197,7 +207,7 @@ class peopleDetector:
                     del trackers[ todel[-i-1] ]
                     del currentTypeList[ todel[-i-1] ]
                 #print(time.time() - timeI)
-            if( (idFrame % SKIPFRAMES == 0) or (not trackers) ):
+            if( (idFrame % SKIPFRAMES == 0) ):
                 if(STREAM):
                     idFrame = 0
                 
@@ -206,6 +216,7 @@ class peopleDetector:
                 newTypeList = []
                 #print( self.detectPeople(frame, threshold=0.5) )
                 detClasses, detConfidences,detBoxes = self.detectPeople(frame, threshold=0.5)
+                currentOutCount = 0
                 for i in range( len(detBoxes) ):
                     center = ( int(detBoxes[i][0] + detBoxes[i][2]/2), int(detBoxes[i][1] + detBoxes[i][3]/2) )
                     if( self.allowedZones[0].contains( center ) ):
@@ -213,12 +224,13 @@ class peopleDetector:
                         newTypeList.append( detClasses[i] )
                     if( not self.allowedZones[1].allowed ):
                         if( self.allowedZones[1].contains( center ) ):
-                            self.outPermitedZone = True
-                        else:
-                            self.outPermitedZone = False                        
+                            cv2.rectangle(frame2show, (detBoxes[i][0],detBoxes[i][1]),(detBoxes[i][0] + detBoxes[i][2], detBoxes[i][1] + detBoxes[i][3]), (0,0,255) , 1)
+                            currentOutCount += 1                      
                     else:
-                        self.outPermitedZone = False
-            
+                        currentOutCount = 0
+                
+                self.outPermitedZone = True if currentOutCount>0 else False
+
                 if(currentBoxes and HEAVY_TRACKER):
                     currentCenters = []
                     newCenters = []
@@ -296,27 +308,33 @@ class peopleDetector:
                     cv2.putText(frame2show, text, (box[0],box[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 2)
 
             idFrame += 1
-
             if(self.outPermitedZone):
-                cv2.putText(frame2show, "CROSSED THE RED LIGHT", (35,35), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 2)
+                cv2.putText(frame2show, "CROSSED THE RED LIGHT", (15,15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 2)
+                cv2.putText(frame2show, "{} pedestrians crossing the red ligth".format(currentOutCount), (15,28), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 2)
                 print("CROSSED THE RED LIGHT")
+                print("{} pedestrians crossing the red ligth".format(currentOutCount))
             cv2.polylines(frame2show, [np.array(self.allowedZones[0].points)], True, self.color(self.allowedZones[0].allowed), 2)
             cv2.polylines(frame2show, [np.array(self.allowedZones[1].points)], True, self.color(self.allowedZones[1].allowed), 2)
             if(DISPLAY_IMG):
-                cv2.imshow('pepleCounter', frame2show)
+
+                cv2.imshow('peopleCounter', frame2show)
             with self.lock:
                 self.outputImage = frame2show.copy()
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 self.scheduler.remove_job('trigger')
                 cv2.destroyAllWindows()
-                #video.stop()
-                video.release()
+        
+                if(STREAM):
+                    video.release()
+                else:
+                    video.stop()
                 break
             
             
             #fps.update()
         #fps.stop()
         #print(fps.fps())
+
 
 
 if __name__=="__main__":
@@ -367,7 +385,8 @@ if __name__=="__main__":
             DATA_INPUT = json.load(data)
         zonesList = [ zone for zone in DATA_INPUT['Zones'] ]
         #detector.processVideoStream("/home/pi/ssd_mobilenet_v1_coco_2018_01_28/dashcam2.mp4", DRAW_ZONES = True)
-        detector.processVideoStream(zonesList, 0, DISPLAY_IMG = False, TIME_SCHEDULER = 10)
+        #detector.processVideoStream(zonesList, 0, DISPLAY_IMG = False, TIME_SCHEDULER = 10)
+        detector.processVideoStream(zonesList, '/home/pi/test_crosswalk.webm', DISPLAY_IMG = False, TIME_SCHEDULER = 10)
 
 
 

@@ -35,18 +35,17 @@ def index():
 	return render_template("index.html", counting=str(detector.peopleCount))
 
 def detectFunction():
-    global detector
-
-    dir_n = os.getcwd()    
-    jsonpath = dir_n + "/data.json"
-
-    with open(jsonpath) as data:
-        DATA_INPUT = json.load(data)
-
-    zonesList = [ zone for zone in DATA_INPUT['Zones'] ]
+	global detector
+	dir_n = os.getcwd()    
+	jsonpath = dir_n + "/data.json"
+	with open(jsonpath) as data:
+		DATA_INPUT = json.load(data)
+	zonesList = [ zone for zone in DATA_INPUT['Zones'] ]
+	detector.processVideoStream(zonesList, 0, TIME_SCHEDULER = 10)
+	#detector.processVideoStream(zonesList, '/home/pi/test_crosswalk.webm', DISPLAY_IMG=False, TIME_SCHEDULER=10)
     #detector.processVideoStream("/home/pi/ssd_mobilenet_v1_coco_2018_01_28/dashcam2.mp4", DRAW_ZONES = True)
-    detector.processVideoStream(zonesList, 0, TIME_SCHEDULER = 10)
-		
+    
+
 def generate():
 	# grab global references to the output frame and lock variables
 	global detector

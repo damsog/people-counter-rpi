@@ -45,7 +45,8 @@ def detectFunction():
 
     zonesList = [ zone for zone in DATA_INPUT['Zones'] ]
     #detector.processVideoStream("/home/pi/ssd_mobilenet_v1_coco_2018_01_28/dashcam2.mp4", DRAW_ZONES = True)
-    detector.processVideoStream(zonesList, 0, TIME_SCHEDULER = 10)
+    #detector.processVideoStream(zonesList, 0, TIME_SCHEDULER = 10)
+	detector.processVideoStream(zonesList, '/home/pi/test_crosswalk.webm', DISPLAY_IMG = False, TIME_SCHEDULER = 10)
 		
 def generate():
 	# grab global references to the output frame and lock variables
